@@ -1,0 +1,13 @@
+{
+	"authors": [
+		"WitherFlower"
+	],
+	"copyright": "Copyright © 2025, WitherFlower",
+	"dependencies": {
+		"requests": "~>2.2.0"
+	},
+	"description": "Statistics Engine for osu!",
+	"license": "proprietary",
+	"name": "osuwither",
+	"libs": [ "sqlite3" ]
+}
