@@ -9,5 +9,6 @@
 	"description": "Statistics Engine for osu!",
 	"license": "proprietary",
 	"name": "osuwither",
+	"lflags": [ "-L./lib/" ],
 	"libs": [ "sqlite3" ]
 }

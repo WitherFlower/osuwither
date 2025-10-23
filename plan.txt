@@ -1,0 +1,31 @@
+Next up:
+
+- Comparer les structures de maps de l'apiv1, v2, osualt, et voir ce qu'on veut garder (probablement le plus possible)
+- Mettre ces structures dans des modules
+- Faire l'algo pour récupérer toutes les maps de l'apiv1
+
+Invariants :
+
+- Support de plusieurs utilisateurs
+- Support de tous les modes de jeu
+
+Features :
+
+- Récupérer toutes les maps du jeu
+    - API v1 (+ v2 pour des données plus complètes?)
+- Récupérer tous les scores du joueur sur toutes les maps
+- Récupérer les stats récentes
+- Backup auto de base de données
+- Import scores.csv et maps.csv osualt
+- Serveur Web hébergé localement pour faire une interface utilisateur
+    - Avec des templates home made omg
+- Affichage des stats globales
+- Affichage de la liste des scores
+    - Tri par stats, filtres par mods, etc...
+- Complétion (clears, score) de maps par tranches de statistiques/packs
+- L'utilisateur doit pouvoir faire des queries pour avoir ses stats sur un ensemble de maps
+- Tri par missing score
+- Génération de collections selon des critères
+- Gestion des collections de lazer (sauf si la feature d'import/export est implémentée dans le client d'ici là :clueless:)
+- Leaderboards ??? Peut-être au moins les places sur les LBs
+- C'est déjà pas mal
