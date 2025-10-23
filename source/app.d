@@ -1,9 +1,13 @@
+import deserialize;
+import apiv1;
+
 import std.stdio;
 import std.string;
 import std.json;
 import std.conv;
 import std.sumtype;
 import etc.c.sqlite3;
+
 import requests;
 
 struct Settings {
@@ -61,45 +65,42 @@ struct TokenResponse {
     string token_type;
 }
 
-// TODO: This will probably break if you add member functions to the deserialized struct
-T deserializeJson(T)(JSONValue json) {
-    T result;
-    foreach (string member; __traits(allMembers, T)) {
-        __traits(getMember, result, member) = json[member].get!(
-            typeof(__traits(getMember, result, member))
-        );
+void getAllBeatmaps(string apiKey) {
+    Beatmap[] beatmaps;
+    string currentQueryDate = "2007-10-06";
+    for (int i = 0; i < 10; i++) {
+        Beatmap[] response = getBeatmaps(apiKey, since: currentQueryDate);
+        string lastAddedDate = currentQueryDate;
+        string lastSeenDate = currentQueryDate;
+        size_t lastSeenDateIndex = 0;
+        foreach (index, beatmap; response) {
+            if (beatmap.approved_date != lastSeenDate) {
+                writefln("new date %s => %s", lastSeenDate, beatmap.approved_date);
+                foreach (b; response[lastSeenDateIndex..index]) {
+                    beatmaps ~= b;
+                }
+                lastAddedDate = lastSeenDate;
+                lastSeenDate = beatmap.approved_date;
+                lastSeenDateIndex = index;
+            }
+        }
+        currentQueryDate = lastAddedDate;
     }
-    return result;
-}
-
-void getApiV1Beatmaps(string key) {
-    Request request = Request();
-    request.addHeaders([
-        "Accept": "application/json",
-        "Content-Type": "application/x-www-form-urlencoded",
-    ]);
-    request.keepAlive = false;
-    request.verbosity = 2;
-    Response response = request.post(
-        "https://osu.ppy.sh/api/get_beatmaps",
-        queryParams(
-            "k",     key,
-            "limit", 500,
-        ),
-    );
-    writeln(response.responseBody);
+    foreach (b; beatmaps) {
+        with(b) writefln("%s - %s [%s] (%s)", artist, title, difficulty_name, creator);
+    }
 }
 
 int main(string[] argv) {
     Settings settings = void;
     parseSettings("settings.ini", settings);
 
-    Request request = Request();
-    request.addHeaders([
-        "Accept": "application/json",
-        "Content-Type": "application/x-www-form-urlencoded",
-    ]);
-    request.keepAlive = false;
+    // Request request = Request();
+    // request.addHeaders([
+    //     "Accept": "application/json",
+    //     "Content-Type": "application/x-www-form-urlencoded",
+    // ]);
+    // request.keepAlive = false;
     // Response response = request.post(
     //     "https://osu.ppy.sh/oauth/token",
     //     queryParams(
@@ -109,10 +110,10 @@ int main(string[] argv) {
     //         "scope",         "public",
     //     ),
     // );
+    getAllBeatmaps(settings.apiV1Key);
 
     // JSONValue responseData = parseJSON(response.responseBody.to!string);
     // writeln(deserializeJson!TokenResponse(responseData));
-    getApiV1Beatmaps(settings.apiV1Key);
-
+    // getApiV1Beatmaps(settings.apiV1Key);
     return 0;
 }
