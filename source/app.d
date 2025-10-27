@@ -67,15 +67,16 @@ struct TokenResponse {
 
 void getAllBeatmaps(string apiKey) {
     Beatmap[] beatmaps;
-    string currentQueryDate = "2007-10-06";
-    for (int i = 0; i < 10; i++) {
+    // string currentQueryDate = "2007-10-06";
+    string currentQueryDate = "2021-12-30";
+    for (int i = 0; i < 1; i++) {
         Beatmap[] response = getBeatmaps(apiKey, since: currentQueryDate);
         string lastAddedDate = currentQueryDate;
         string lastSeenDate = currentQueryDate;
         size_t lastSeenDateIndex = 0;
         foreach (index, beatmap; response) {
             if (beatmap.approved_date != lastSeenDate) {
-                writefln("new date %s => %s", lastSeenDate, beatmap.approved_date);
+                // writefln("new date %s => %s", lastSeenDate, beatmap.approved_date);
                 foreach (b; response[lastSeenDateIndex..index]) {
                     beatmaps ~= b;
                 }
@@ -87,7 +88,8 @@ void getAllBeatmaps(string apiKey) {
         currentQueryDate = lastAddedDate;
     }
     foreach (b; beatmaps) {
-        with(b) writefln("%s - %s [%s] (%s)", artist, title, difficulty_name, creator);
+        // with(b) writefln("%s - %s [%s] (%s)", artist, title, difficulty_name, creator);
+        b.toBeatmap().writeln;
     }
 }
 

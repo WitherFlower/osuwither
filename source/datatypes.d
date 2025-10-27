@@ -100,20 +100,21 @@ enum Ruleset : int {
 
 // Beatmap Types
 
+// TODO: Use std.datetime.systime.Systime instead of Date
 struct Beatmap {
-    import std.datetime.date : Date;
-    import core.time         : Duration;
+    import std.datetime.systime : SysTime;
+    import core.time            : Duration;
 
     RankedStatus rankedStatus;
-    Date         submittedDate;
-    Date         rankedDate;
-    Date         updatedDate;
+    SysTime      submittedDate;
+    SysTime      rankedDate;
+    SysTime      updatedDate;
     int          beatmapId;
     int          beatmapSetId;
     float        bpm;
     Mapper[]     mappers;
     float        starRating;
-    Date         lastStarRatingUpdate; // Used for refetch or recalc
+    SysTime      lastStarRatingUpdate; // Used for refetch or recalc
     Ruleset      ruleset;
     Duration     length;
     Duration     drainLength;

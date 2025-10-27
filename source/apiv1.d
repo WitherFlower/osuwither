@@ -2,15 +2,17 @@ module apiv1;
 
 import datatypes;
 import deserialize;
+import result;
 
 import std.conv;
+import std.format;
 import std.json;
 import std.stdio;
 
 import requests;
 
 struct Beatmap {
-    string approved;
+    string approved; // 4 = loved, 3 = qualified, 2 = approved, 1 = ranked, 0 = pending, -1 = WIP, -2 = graveyard
     string submit_date;
     string approved_date;
     string artist;
@@ -51,6 +53,74 @@ struct Beatmap {
     string packs; // This is not in the docs but the API seems to be returning it
 }
 
+RankedStatus toRankedStatus(string apiV1RankedStatus)
+in (apiV1RankedStatus !is null) {
+    int rankedStatusNumber = apiV1RankedStatus.to!int;
+    with(RankedStatus) final switch(rankedStatusNumber) {
+        case -2: return Graveyard;
+        case -1: return Wip;
+        case  0: return Pending;
+        case  1: return Ranked;
+        case  2: return Approved;
+        case  3: return Qualified;
+        case  4: return Loved;
+    }
+}
+
+Ruleset toRuleset(string apiV1Mode)
+in (apiV1Mode !is null) {
+    int rankedStatusNumber = apiV1Mode.to!int;
+    with(Ruleset) final switch(rankedStatusNumber) {
+        case  0: return Osu;
+        case  1: return Taiko;
+        case  2: return Catch;
+        case  3: return Mania;
+    }
+}
+
+ObjectCounts getObjectCounts(Beatmap beatmap) {
+    Ruleset ruleset = beatmap.mode.toRuleset();
+    with(Ruleset) final switch (ruleset) {
+        case Osu:   return ObjectCounts(OsuObjectCounts(
+                        circleCount:    beatmap.count_normal.to!int,
+                        sliderCount:    beatmap.count_slider.to!int,
+                        spinnerCount:   beatmap.count_spinner.to!int,
+                    ));
+        case Taiko: return ObjectCounts(TaikoObjectCounts(
+                        hitCount:       beatmap.count_normal.to!int,
+                        drumrollCount:  beatmap.count_slider.to!int,
+                        swellCount:     beatmap.count_spinner.to!int,
+                    ));
+        case Catch: return ObjectCounts(CatchObjectCounts(
+                        fruitCount:     beatmap.count_normal.to!int,
+                        juiceCount:     beatmap.count_slider.to!int,
+                        bananaCount:    beatmap.count_spinner.to!int,
+                    ));
+        case Mania: return ObjectCounts(ManiaObjectCounts(
+                        noteCount:      beatmap.count_normal.to!int,
+                        holdNoteCount:  beatmap.count_slider.to!int,
+                    ));
+    }
+}
+
+import std.datetime.systime  : SysTime;
+import std.datetime.date     : DateTime;
+import std.datetime.timezone : UTC;
+
+SysTime parseApiV1Date(string date) {
+    int year, month, day, hour, minutes, seconds;
+    date.formattedRead!"%d-%d-%d %d:%d:%d"(year, month, day, hour, minutes, seconds);
+    return SysTime(DateTime(year, month, day, hour, minutes, seconds), tz: UTC());
+}
+
+unittest {
+    import core.time : TimeException;
+    import std.exception : assertThrown;
+    assert(parseApiV1Date("2007-10-06 17:46:31") == SysTime(DateTime(2007, 10, 6, 17, 46, 31), tz: UTC()));
+    assertThrown!TimeException(parseApiV1Date("9999999-99-99 99:99:99"));
+    assertThrown!TimeException(parseApiV1Date(null));
+}
+
 /+
   This function is here, because if the API changes, it will also change,
   and it's better if the change is local to this file as opposed to being split apart.
@@ -64,7 +134,31 @@ struct Beatmap {
   Beatmap beatmap = apiV1Beatmap.toBeatmap();
 +/
 datatypes.Beatmap toBeatmap(Beatmap beatmap) {
-    datatypes.Beatmap result;
+    import std.datetime.systime : SysTime, Clock;
+    import core.time            : seconds;
+    auto result = datatypes.Beatmap(
+        rankedStatus:         beatmap.approved.toRankedStatus(),
+        submittedDate:        beatmap.submit_date.parseApiV1Date(),
+        rankedDate:           beatmap.approved_date.parseApiV1Date(),
+        updatedDate:          beatmap.approved_date.parseApiV1Date(),
+        beatmapId:            beatmap.beatmap_id.to!int,
+        beatmapSetId:         beatmap.beatmapset_id.to!int,
+        bpm:                  beatmap.bpm.to!float,
+        mappers:              [],
+        starRating:           beatmap.difficultyrating.to!float,
+        lastStarRatingUpdate: Clock.currTime(),
+        ruleset:              beatmap.mode.toRuleset(),
+        length:               seconds(beatmap.total_length.to!int),
+        drainLength:          seconds(beatmap.hit_length.to!int),
+        difficultyName:       beatmap.difficulty_name,
+        objectCounts:         beatmap.getObjectCounts(),
+        maxCombo:             tryEval(beatmap.max_combo.to!int).match!(
+            // TODO: on top of logging the exception, report the map id to a list of
+            //       "recovered but not critical" conversions
+            (Exception e) { writeln(e); return 0; },
+            (int combo) => combo,
+        ),
+    );
     return result;
 }
 
@@ -80,9 +174,9 @@ Beatmap[] getBeatmaps(string apiKey, string since = null) {
         "https://osu.ppy.sh/api/get_beatmaps",
         queryParams(
             "k",     apiKey,
-            "limit", 10,
+            // "limit", 10,
             "since", since,
-            /* "limit", 500, */
+            "limit", 500,
         ),
     );
     /* writeln(response.responseBody); */
