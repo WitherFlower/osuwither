@@ -121,6 +121,10 @@ unittest {
     assertThrown!TimeException(parseApiV1Date(null));
 }
 
+enum ErrorType {
+    InvalidMaxCombo,
+}
+
 /+
   This function is here, because if the API changes, it will also change,
   and it's better if the change is local to this file as opposed to being split apart.
@@ -133,36 +137,31 @@ unittest {
   ApiV1Beatmap apiV1Beatmap;
   Beatmap beatmap = apiV1Beatmap.toBeatmap();
 +/
-datatypes.Beatmap toBeatmap(Beatmap beatmap) {
+datatypes.Beatmap toBeatmap(Beatmap beatmap, out ErrorType[] errors) {
     import std.datetime.systime : SysTime, Clock;
     import core.time            : seconds;
     auto result = datatypes.Beatmap(
         rankedStatus:         beatmap.approved.toRankedStatus(),
         submittedDate:        beatmap.submit_date.parseApiV1Date(),
-        rankedDate:           beatmap.approved_date.parseApiV1Date(),
-        updatedDate:          beatmap.approved_date.parseApiV1Date(),
+        rankedDate:           beatmap.approved_date.parseApiV1Date().orDefault(),
+        updatedDate:          beatmap.approved_date.parseApiV1Date().orDefault(),
         beatmapId:            beatmap.beatmap_id.to!int,
         beatmapSetId:         beatmap.beatmapset_id.to!int,
-        bpm:                  beatmap.bpm.to!float,
+        bpm:                  beatmap.bpm.to!float.orDefault(),
         mappers:              [],
-        starRating:           beatmap.difficultyrating.to!float,
+        starRating:           beatmap.difficultyrating.to!float.orDefault(),
         lastStarRatingUpdate: Clock.currTime(),
         ruleset:              beatmap.mode.toRuleset(),
         length:               seconds(beatmap.total_length.to!int),
         drainLength:          seconds(beatmap.hit_length.to!int),
         difficultyName:       beatmap.difficulty_name,
         objectCounts:         beatmap.getObjectCounts(),
-        maxCombo:             tryEval(beatmap.max_combo.to!int).match!(
-            // TODO: on top of logging the exception, report the map id to a list of
-            //       "recovered but not critical" conversions
-            (Exception e) { writeln(e); return 0; },
-            (int combo) => combo,
-        ),
+        maxCombo:             beatmap.max_combo.to!int.orDefaultWithError(ErrorType.InvalidMaxCombo, errors),
     );
     return result;
 }
 
-Beatmap[] getBeatmaps(string apiKey, string since = null) {
+Beatmap[] getBeatmaps(string apiKey, string since = null, int limit = 500) {
     Request request = Request();
     request.addHeaders([
         "Accept": "application/json",
@@ -176,7 +175,7 @@ Beatmap[] getBeatmaps(string apiKey, string since = null) {
             "k",     apiKey,
             // "limit", 10,
             "since", since,
-            "limit", 500,
+            "limit", limit,
         ),
     );
     /* writeln(response.responseBody); */

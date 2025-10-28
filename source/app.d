@@ -68,28 +68,40 @@ struct TokenResponse {
 void getAllBeatmaps(string apiKey) {
     Beatmap[] beatmaps;
     // string currentQueryDate = "2007-10-06";
-    string currentQueryDate = "2021-12-30";
-    for (int i = 0; i < 1; i++) {
-        Beatmap[] response = getBeatmaps(apiKey, since: currentQueryDate);
+    // string currentQueryDate = "2021-12-30"; // Invalid Max combo
+    string currentQueryDate = "2025-10-28 10:00:00";
+    enum PAGE_SIZE = 10;
+    bool finished = false;
+    while (!finished) {
+        Beatmap[] response = getBeatmaps(apiKey, since: currentQueryDate, limit: PAGE_SIZE);
         string lastAddedDate = currentQueryDate;
         string lastSeenDate = currentQueryDate;
         size_t lastSeenDateIndex = 0;
-        foreach (index, beatmap; response) {
-            if (beatmap.approved_date != lastSeenDate) {
-                // writefln("new date %s => %s", lastSeenDate, beatmap.approved_date);
-                foreach (b; response[lastSeenDateIndex..index]) {
-                    beatmaps ~= b;
+        response.length.writeln;
+        if (response.length < PAGE_SIZE) {
+            foreach(beatmap; response) beatmaps ~= beatmap;
+            finished = true;
+        } else {
+            foreach (index, beatmap; response) {
+                if (beatmap.approved_date != lastSeenDate) {
+                    // writefln("new date %s => %s", lastSeenDate, beatmap.approved_date);
+                    foreach (b; response[lastSeenDateIndex..index]) {
+                        beatmaps ~= b;
+                    }
+                    lastAddedDate = lastSeenDate;
+                    lastSeenDate = beatmap.approved_date;
+                    lastSeenDateIndex = index;
                 }
-                lastAddedDate = lastSeenDate;
-                lastSeenDate = beatmap.approved_date;
-                lastSeenDateIndex = index;
             }
         }
         currentQueryDate = lastAddedDate;
     }
+    beatmaps.length.writeln;
     foreach (b; beatmaps) {
-        // with(b) writefln("%s - %s [%s] (%s)", artist, title, difficulty_name, creator);
-        b.toBeatmap().writeln;
+        with(b) writefln("%s - %s [%s] (%s)", artist, title, difficulty_name, creator);
+        apiv1.ErrorType[] errors;
+        b.toBeatmap(errors);
+        if (errors.length) writeln(errors);
     }
 }
 

@@ -6,6 +6,7 @@ public import std.sumtype : SumType, match;
 
 alias Result(T) = SumType!(T, Exception);
 
+/// Catch an exception and wrap it in a result type
 Result!T tryEval(T)(lazy T expr) nothrow {
     try return Result!T(expr);
     catch (Exception e) return Result!T(e);
@@ -49,4 +50,21 @@ unittest {
     assert(tryFoo(0)  == "Special message on zero !!!");
     assert(tryFoo(1)  == "Got result.TooSmallException with message a is too small: 1");
     assert(tryFoo(4)  == "Got int 168");
+}
+
+// TODO: make a unittest for this
+T orDefault(T)(lazy T expr) nothrow {
+    int[] errors;
+    return expr.orDefaultWithError(0, errors);
+}
+
+// TODO: make a unittest for this
+T orDefaultWithError(T, E)(lazy T expr, E error, ref E[] errors) nothrow {
+    return tryEval(expr).match!(
+        (T value) => value,
+        (_) {
+            errors ~= error;
+            return T.init;
+        },
+    );
 }
