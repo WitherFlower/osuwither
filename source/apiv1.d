@@ -121,9 +121,13 @@ unittest {
     assertThrown!TimeException(parseApiV1Date(null));
 }
 
-enum ErrorType {
+enum BeatmapParsingError {
+    InvalidBpm,
     InvalidMaxCombo,
+    InvalidRankedDate,
+    InvalidStarRating,
 }
+
 
 /+
   This function is here, because if the API changes, it will also change,
@@ -137,26 +141,27 @@ enum ErrorType {
   ApiV1Beatmap apiV1Beatmap;
   Beatmap beatmap = apiV1Beatmap.toBeatmap();
 +/
-datatypes.Beatmap toBeatmap(Beatmap beatmap, out ErrorType[] errors) {
+datatypes.Beatmap toBeatmap(Beatmap beatmap) nothrow {
     import std.datetime.systime : SysTime, Clock;
     import core.time            : seconds;
+    with (BeatmapParsingError)
     auto result = datatypes.Beatmap(
         rankedStatus:         beatmap.approved.toRankedStatus(),
         submittedDate:        beatmap.submit_date.parseApiV1Date(),
-        rankedDate:           beatmap.approved_date.parseApiV1Date().orDefault(),
-        updatedDate:          beatmap.approved_date.parseApiV1Date().orDefault(),
+        rankedDate:           beatmap.approved_date.parseApiV1Date().boxException(InvalidRankedDate).orDefault(),
+        updatedDate:          beatmap.approved_date.parseApiV1Date().boxException(InvalidRankedDate).orDefault(),
         beatmapId:            beatmap.beatmap_id.to!int,
         beatmapSetId:         beatmap.beatmapset_id.to!int,
-        bpm:                  beatmap.bpm.to!float.orDefault(),
+        bpm:                  beatmap.bpm.to!float.boxException(InvalidBpm).orDefault(),
         mappers:              [],
-        starRating:           beatmap.difficultyrating.to!float.orDefault(),
+        starRating:           beatmap.difficultyrating.to!float.boxException(InvalidStarRating).orDefault(),
         lastStarRatingUpdate: Clock.currTime(),
         ruleset:              beatmap.mode.toRuleset(),
         length:               seconds(beatmap.total_length.to!int),
         drainLength:          seconds(beatmap.hit_length.to!int),
         difficultyName:       beatmap.difficulty_name,
         objectCounts:         beatmap.getObjectCounts(),
-        maxCombo:             beatmap.max_combo.to!int.orDefaultWithError(ErrorType.InvalidMaxCombo, errors),
+        maxCombo:             beatmap.max_combo.to!int.boxException(InvalidMaxCombo).orDefault(),
     );
     return result;
 }
@@ -173,8 +178,8 @@ Beatmap[] getBeatmaps(string apiKey, string since = null, int limit = 500) {
         "https://osu.ppy.sh/api/get_beatmaps",
         queryParams(
             "k",     apiKey,
-            // "limit", 10,
             "since", since,
+            // "limit", 10,
             "limit", limit,
         ),
     );

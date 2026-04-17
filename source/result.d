@@ -1,5 +1,48 @@
 module result;
 
+import std.sumtype;
+
+struct Result(T, E) {
+
+    immutable bool isValue;
+    private union {
+        T value_;
+        E error_;
+    }
+
+    static Result!(T, E) makeValue(T value) => Result!(T, E)(isValue: true,  value_: value);
+    static Result!(T, E) makeError(E error) => Result!(T, E)(isValue: false, error_: error);
+
+    // S is a subtype of E
+    // Create an error from the subtype value directly
+    static Result!(T, E) makeError(S)(S error)
+    if (isSumType!E && staticIndexOf!(S, E.Types) != -1)
+    {
+        return Result!(T, E)(isValue: false, error_: E(error));
+    }
+
+    bool isError() => !isValue;
+
+    T value() { assert(isValue, "Could not get value : Result type is an error"); return value_; }
+    E error() { assert(isError, "Could not get error : Result type is a value" ); return error_; }
+
+    T orDefault() => isValue ? value_ : T.init;
+    T orElse(T defaultValue) => isValue ? value_ : defaultValue;
+}
+
+// TODO: make a unittest for this
+Result!(T, E) boxException(T, E)(lazy T expr, E error) nothrow {
+    alias RType = typeof(return);
+    try {
+        return RType.makeValue(expr);
+    } catch (Exception e) {
+        return RType.makeError(error);
+    }
+}
+
+/+
+module result;
+
 import std.conv;
 import std.stdio;
 public import std.sumtype : SumType, match;
@@ -68,3 +111,4 @@ T orDefaultWithError(T, E)(lazy T expr, E error, ref E[] errors) nothrow {
         },
     );
 }
++/

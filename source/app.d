@@ -6,6 +6,7 @@ import std.string;
 import std.json;
 import std.conv;
 import std.sumtype;
+import core.thread;
 import etc.c.sqlite3;
 
 import requests;
@@ -69,15 +70,14 @@ void getAllBeatmaps(string apiKey) {
     Beatmap[] beatmaps;
     // string currentQueryDate = "2007-10-06";
     // string currentQueryDate = "2021-12-30"; // Invalid Max combo
-    string currentQueryDate = "2025-10-28 10:00:00";
-    enum PAGE_SIZE = 10;
+    string currentQueryDate = "2026-03-28 10:00:00";
+    enum PAGE_SIZE = 500;
     bool finished = false;
     while (!finished) {
         Beatmap[] response = getBeatmaps(apiKey, since: currentQueryDate, limit: PAGE_SIZE);
         string lastAddedDate = currentQueryDate;
         string lastSeenDate = currentQueryDate;
         size_t lastSeenDateIndex = 0;
-        response.length.writeln;
         if (response.length < PAGE_SIZE) {
             foreach(beatmap; response) beatmaps ~= beatmap;
             finished = true;
@@ -95,10 +95,10 @@ void getAllBeatmaps(string apiKey) {
             }
         }
         currentQueryDate = lastAddedDate;
+        Thread.sleep(dur!"seconds"(1));
     }
-    beatmaps.length.writeln;
     foreach (b; beatmaps) {
-        with(b) writefln("%s - %s [%s] (%s)", artist, title, difficulty_name, creator);
+        with(b) writefln("%s | %s - %s [%s] (%s)", approved, artist, title, difficulty_name, creator);
         apiv1.ErrorType[] errors;
         b.toBeatmap(errors);
         if (errors.length) writeln(errors);
