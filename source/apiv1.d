@@ -12,7 +12,7 @@ import std.stdio;
 import requests;
 
 struct Beatmap {
-    string approved; // 4 = loved, 3 = qualified, 2 = approved, 1 = ranked, 0 = pending, -1 = WIP, -2 = graveyard
+    string approved;
     string submit_date;
     string approved_date;
     string artist;

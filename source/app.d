@@ -1,12 +1,13 @@
-import deserialize;
 import apiv1;
+import database;
+import deserialize;
 
 import std.stdio;
 import std.string;
 import std.json;
 import std.conv;
+import std.functional;
 import std.sumtype;
-import etc.c.sqlite3;
 
 import requests;
 
@@ -30,37 +31,8 @@ void parseSettings(string fileName, out Settings settings) {
     }
 }
 
-extern (C)
-int callback(void *notUsed, int argc, char **argv, char **azColName) {
-    int i;
-    for (i = 0; i < argc; i++) {
-        printf("%s = %s\n", azColName[i], argv[i] ? argv[i] : "NULL");
-    }
-    printf("\n");
-    return 0;
-}
-
-void createDatabase() {
-    sqlite3 *db;
-    char *zErrMsg = null;
-    int rc;
-
-    rc = sqlite3_open("osuw.db", &db);
-    if (rc) {
-        writeln("Can't open database: ", sqlite3_errmsg(db));
-        sqlite3_close(db);
-        return;
-    }
-    rc = sqlite3_exec(db, "CREATE TABLE user(id, name)", &callback, null, &zErrMsg);
-    if (rc != SQLITE_OK) {
-        writeln("SQL error: ", zErrMsg);
-        sqlite3_free(zErrMsg);
-    }
-    sqlite3_close(db);
-}
-
 struct TokenResponse {
-    int expires_in;
+    int    expires_in;
     string access_token;
     string token_type;
 }
@@ -108,6 +80,10 @@ void getAllBeatmaps(string apiKey) {
 int main(string[] argv) {
     Settings settings = void;
     parseSettings("settings.ini", settings);
+    createDatabase();
+    // getAllBeatmaps(settings.apiV1Key);
+
+    return 0;
 
     // Request request = Request();
     // request.addHeaders([
@@ -124,10 +100,8 @@ int main(string[] argv) {
     //         "scope",         "public",
     //     ),
     // );
-    getAllBeatmaps(settings.apiV1Key);
 
     // JSONValue responseData = parseJSON(response.responseBody.to!string);
     // writeln(deserializeJson!TokenResponse(responseData));
     // getApiV1Beatmaps(settings.apiV1Key);
-    return 0;
 }

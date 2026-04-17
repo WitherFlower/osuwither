@@ -100,7 +100,6 @@ enum Ruleset : int {
 
 // Beatmap Types
 
-// TODO: Use std.datetime.systime.Systime instead of Date
 struct Beatmap {
     import std.datetime.systime : SysTime;
     import core.time            : Duration;
