@@ -28,4 +28,6 @@ Features :
 - Génération de collections selon des critères
 - Gestion des collections de lazer (sauf si la feature d'import/export est implémentée dans le client d'ici là :clueless:)
 - Leaderboards ??? Peut-être au moins les places sur les LBs
+- LA COURBE DE ZABOO de wither du scorecamp là
+    - Avec une régression linéaire de sigmoïde omg
 - C'est déjà pas mal

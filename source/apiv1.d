@@ -124,6 +124,7 @@ unittest {
 enum BeatmapParsingError {
     InvalidBpm,
     InvalidMaxCombo,
+    InvalidUpdatedDate,
     InvalidRankedDate,
     InvalidStarRating,
 }
@@ -141,29 +142,68 @@ enum BeatmapParsingError {
   ApiV1Beatmap apiV1Beatmap;
   Beatmap beatmap = apiV1Beatmap.toBeatmap();
 +/
-datatypes.Beatmap toBeatmap(Beatmap beatmap) nothrow {
+result.Result!(datatypes.Beatmap, BeatmapParsingError[]) toBeatmap(Beatmap beatmap) {
     import std.datetime.systime : SysTime, Clock;
-    import core.time            : seconds;
-    with (BeatmapParsingError)
-    auto result = datatypes.Beatmap(
-        rankedStatus:         beatmap.approved.toRankedStatus(),
-        submittedDate:        beatmap.submit_date.parseApiV1Date(),
-        rankedDate:           beatmap.approved_date.parseApiV1Date().boxException(InvalidRankedDate).orDefault(),
-        updatedDate:          beatmap.approved_date.parseApiV1Date().boxException(InvalidRankedDate).orDefault(),
-        beatmapId:            beatmap.beatmap_id.to!int,
-        beatmapSetId:         beatmap.beatmapset_id.to!int,
-        bpm:                  beatmap.bpm.to!float.boxException(InvalidBpm).orDefault(),
-        mappers:              [],
-        starRating:           beatmap.difficultyrating.to!float.boxException(InvalidStarRating).orDefault(),
-        lastStarRatingUpdate: Clock.currTime(),
-        ruleset:              beatmap.mode.toRuleset(),
-        length:               seconds(beatmap.total_length.to!int),
-        drainLength:          seconds(beatmap.hit_length.to!int),
-        difficultyName:       beatmap.difficulty_name,
-        objectCounts:         beatmap.getObjectCounts(),
-        maxCombo:             beatmap.max_combo.to!int.boxException(InvalidMaxCombo).orDefault(),
-    );
-    return result;
+    import core.time            : Duration, seconds;
+
+    BeatmapParsingError[] errors;
+
+    RankedStatus rankedStatus         = beatmap.approved.toRankedStatus();
+    SysTime      submittedDate        = beatmap.submit_date.parseApiV1Date();
+    SysTime      rankedDate           = beatmap.approved_date.parseApiV1Date().onException({
+        errors ~= BeatmapParsingError.InvalidRankedDate;
+        return SysTime.init;
+    });
+    SysTime      updatedDate          = beatmap.approved_date.parseApiV1Date().onException({
+        errors ~= BeatmapParsingError.InvalidUpdatedDate;
+        return SysTime.init;
+    });
+
+    int          beatmapId            = beatmap.beatmap_id.to!int;
+    int          beatmapSetId         = beatmap.beatmapset_id.to!int;
+    float        bpm                  = beatmap.bpm.to!float.onException({
+        errors ~= BeatmapParsingError.InvalidBpm;
+        return 0f;
+    });
+    Mapper[]     mappers              = [];
+    float        starRating           = beatmap.difficultyrating.to!float.onException({
+        errors ~= BeatmapParsingError.InvalidStarRating;
+        return 0f;
+    });
+    SysTime      lastStarRatingUpdate = Clock.currTime();
+    Ruleset      ruleset              = beatmap.mode.toRuleset();
+    Duration     length               = seconds(beatmap.total_length.to!int);
+    Duration     drainLength          = seconds(beatmap.hit_length.to!int);
+    string       difficultyName       = beatmap.difficulty_name;
+    ObjectCounts objectCounts         = beatmap.getObjectCounts();
+    int          maxCombo             = beatmap.max_combo.to!int.onException({
+        errors ~= BeatmapParsingError.InvalidMaxCombo;
+        return 0;
+    });
+
+    alias R = typeof(return);
+    if (errors.length) {
+        return R.makeError(errors);
+    }
+
+    return R.makeValue(datatypes.Beatmap(
+        rankedStatus:         rankedStatus,
+        submittedDate:        submittedDate,
+        rankedDate:           rankedDate,
+        updatedDate:          updatedDate,
+        beatmapId:            beatmapId,
+        beatmapSetId:         beatmapSetId,
+        bpm:                  bpm,
+        mappers:              mappers,
+        starRating:           starRating,
+        lastStarRatingUpdate: lastStarRatingUpdate,
+        ruleset:              ruleset,
+        length:               length,
+        drainLength:          drainLength,
+        difficultyName:       difficultyName,
+        objectCounts:         objectCounts,
+        maxCombo:             maxCombo,
+    ));
 }
 
 Beatmap[] getBeatmaps(string apiKey, string since = null, int limit = 500) {

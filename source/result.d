@@ -40,6 +40,15 @@ Result!(T, E) boxException(T, E)(lazy T expr, E error) nothrow {
     }
 }
 
+T onException(T)(lazy T expr, T delegate() nothrow func) nothrow {
+    alias RType = typeof(return);
+    try {
+        return expr;
+    } catch (Exception e) {
+        return func();
+    }
+}
+
 /+
 module result;
 

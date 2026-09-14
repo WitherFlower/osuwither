@@ -1,5 +1,5 @@
 import deserialize;
-import apiv1;
+import datatypes;
 
 import std.stdio;
 import std.string;
@@ -67,10 +67,11 @@ struct TokenResponse {
 }
 
 void getAllBeatmaps(string apiKey) {
+    import apiv1;
     Beatmap[] beatmaps;
     // string currentQueryDate = "2007-10-06";
     // string currentQueryDate = "2021-12-30"; // Invalid Max combo
-    string currentQueryDate = "2026-03-28 10:00:00";
+    string currentQueryDate = "2026-08-28 10:00:00";
     enum PAGE_SIZE = 500;
     bool finished = false;
     while (!finished) {
@@ -84,7 +85,7 @@ void getAllBeatmaps(string apiKey) {
         } else {
             foreach (index, beatmap; response) {
                 if (beatmap.approved_date != lastSeenDate) {
-                    // writefln("new date %s => %s", lastSeenDate, beatmap.approved_date);
+                    writefln("new date %s => %s", lastSeenDate, beatmap.approved_date);
                     foreach (b; response[lastSeenDateIndex..index]) {
                         beatmaps ~= b;
                     }
@@ -98,10 +99,13 @@ void getAllBeatmaps(string apiKey) {
         Thread.sleep(dur!"seconds"(1));
     }
     foreach (b; beatmaps) {
-        with(b) writefln("%s | %s - %s [%s] (%s)", approved, artist, title, difficulty_name, creator);
-        apiv1.ErrorType[] errors;
-        b.toBeatmap(errors);
-        if (errors.length) writeln(errors);
+        auto beatmap = b.toBeatmap;
+        if (beatmap.isError) {
+            writeln(b.beatmap_id, " : ", beatmap.error);
+        } else {
+            // writeln(beatmap.value);
+        }
+        // with(b) writefln("%s | %s - %s [%s] (%s)", approved, artist, title, difficulty_name, creator);
     }
 }
 
