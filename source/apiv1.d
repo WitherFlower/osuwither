@@ -228,7 +228,12 @@ Beatmap[] getBeatmaps(string apiKey, string since = null, int limit = 500) {
 
     Beatmap[] result = void;
     string error = "";
-    if (!deserializeJson(responseJson, result, error)) writeln(error);
+    try {
+        if (!deserializeJson(responseJson, result, error)) writeln(error);
+    } catch (JSONException e) {
+        writeln(e);
+        writefln("Deserialization failed horribly !\nThis was the response :\n%s", responseJson);
+    }
     return result;
 }
 

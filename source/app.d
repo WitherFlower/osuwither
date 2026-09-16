@@ -1,10 +1,12 @@
-import deserialize;
+import database;
 import datatypes;
+import deserialize;
 
+import std.conv;
+import std.datetime;
+import std.json;
 import std.stdio;
 import std.string;
-import std.json;
-import std.conv;
 import std.sumtype;
 import core.thread;
 import etc.c.sqlite3;
@@ -41,37 +43,18 @@ int callback(void *notUsed, int argc, char **argv, char **azColName) {
     return 0;
 }
 
-void createDatabase() {
-    sqlite3 *db;
-    char *zErrMsg = null;
-    int rc;
-
-    rc = sqlite3_open("osuw.db", &db);
-    if (rc) {
-        writeln("Can't open database: ", sqlite3_errmsg(db));
-        sqlite3_close(db);
-        return;
-    }
-    rc = sqlite3_exec(db, "CREATE TABLE user(id, name)", &callback, null, &zErrMsg);
-    if (rc != SQLITE_OK) {
-        writeln("SQL error: ", zErrMsg);
-        sqlite3_free(zErrMsg);
-    }
-    sqlite3_close(db);
-}
-
 struct TokenResponse {
     int expires_in;
     string access_token;
     string token_type;
 }
 
-void getAllBeatmaps(string apiKey) {
+Beatmap[] getAllBeatmaps(string apiKey) {
     import apiv1;
-    Beatmap[] beatmaps;
+    apiv1.Beatmap[] beatmaps;
     // string currentQueryDate = "2007-10-06";
     // string currentQueryDate = "2021-12-30"; // Invalid Max combo
-    string currentQueryDate = "2026-08-28 10:00:00";
+    string currentQueryDate = "2026-09-15 10:00:00";
     enum PAGE_SIZE = 500;
     bool finished = false;
     while (!finished) {
@@ -98,20 +81,38 @@ void getAllBeatmaps(string apiKey) {
         currentQueryDate = lastAddedDate;
         Thread.sleep(dur!"seconds"(1));
     }
+
+    datatypes.Beatmap[] result;
+
     foreach (b; beatmaps) {
         auto beatmap = b.toBeatmap;
         if (beatmap.isError) {
             writeln(b.beatmap_id, " : ", beatmap.error);
         } else {
-            // writeln(beatmap.value);
+            result ~= beatmap.value;
         }
-        // with(b) writefln("%s | %s - %s [%s] (%s)", approved, artist, title, difficulty_name, creator);
     }
+    return result;
 }
 
 int main(string[] argv) {
     Settings settings = void;
     parseSettings("settings.ini", settings);
+
+    sqlite3* db;
+    scope(exit) sqlite3_close(db);
+    if (sqlite3_open("osuw.db", &db)) {
+        writefln("Can't open database: %s", sqlite3_errmsg(db).fromStringz());
+        return 1;
+    }
+
+    createDatabase(db);
+
+    Beatmap[] beatmaps = getAllBeatmaps(settings.apiV1Key);
+
+    foreach (beatmap; beatmaps) {
+        insertBeatmap(db, beatmap);
+    }
 
     // Request request = Request();
     // request.addHeaders([
@@ -128,7 +129,6 @@ int main(string[] argv) {
     //         "scope",         "public",
     //     ),
     // );
-    getAllBeatmaps(settings.apiV1Key);
 
     // JSONValue responseData = parseJSON(response.responseBody.to!string);
     // writeln(deserializeJson!TokenResponse(responseData));
